@@ -9,3 +9,14 @@ Task 1: Deletes unwanted entities in the raw data that is exported from the comp
 Task 2: Scans the data for potential duplicated orders.
 Task 3: Scans the data for missing orders that slipped under the user's radar while they were exporting orders from Shopify's database, so the user can rectify this man made error. 
 Task 4: Deletes columns storing unnecessary data, formats the cell contents that caters to the user's needs. Now the user can finish some very small finishing touches that have to be completed manually before the user utilizes the next macro to transfer the refined data into the destination worksheet of the workbook.
+
+Sub Block2(): 
+Task 1: Transfers the raw data into the destination worksheet of our macro enabled workbook. A portion of the data will be first transferred to intermediate worksheets to be further refined.
+Task 2: Clears the workbook of no longer necessary so there would be space in the workbook for the next batch of sales order data to be processed for the day. 
+
+Sub Block3(): 
+Task 1: Transfers the raw data in our macro enabled workbook to a destination workbook that has the hyperlinks needed to import the sales order data into the company's Enterprise Resource Planning (ERP) application.
+Task 2: Clears the contents of the marco enableld workbook then saves and closes BOTH the macro enabled workbook and the destination workbook while the user can spend the next several minutes sending emails to their colleagues and working with the aforementioned ERP application. 
+
+Sub Block4(): 
+Task 1: Keeps record of the Shopify sales order data the user processed for the day in a record keeping worksheet of the macro enabled workbook. 
