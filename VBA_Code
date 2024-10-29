@@ -1,0 +1,225 @@
+Sub Block1()
+
+' About these Modules:
+' This system of programs automates the processing of Shopify orders for our ERP system, Sage X3.
+'
+' What I do:
+' 1. Log into Shopify to retrieve overnight sales orders.
+' 2. Export the sales orders to Excel for data cleanup.
+' 3. Refine the data for import into X3.
+'
+' Where Excel VBA comes in:
+' - Four macros are designed to execute four distinct blocks of operations.
+' - The first macro focuses on cleaning raw data from the first batch of Shopify orders that I export. These are the orders the company receive over the course of the evening and afternoon before the current day.
+    
+
+' Subroutine 1: Removes unwanted words, phrases, symbols, numbers, etc. in our exported raw data.
+
+    Dim wb_Automation_Log As Workbook ' Declaring the variable wb_Automation_Log
+    
+    Dim ws_Exported_Orders As Worksheet ' Declaring the variable ws_Exported_Orders
+    
+    Set wb_Automation_Log = ThisWorkbook ' wb_Automation_Log is the workbook that facilitates the data cleanup for the exported Shopify orders. We would eventually transfer the refined data in this workbook to another workbook that contains the hyperlinks
+    ' needed to import the sales order data into X3 but I'm getting a head of myself. Just take into cognizance that "wb_Automation_Log  primarily serves as the "source workbook" (yes that is what Excel VBA programmers call it).
+    
+    Set ws_Exported_Orders = ThisWorkbook.Sheets("Exported Shopify Orders") ' In our source workbook is a worksheet that primarily serves as the "source worksheet", "ws_Exported_Orders." When we export a batch of sales orders from Shopify, we will transfer
+    ' that data into our source worksheet. Our macros subsequently perform a series of data cleaning targeting the data found in our source worksheet.
+    
+    ws_Exported_Orders.Activate
+    
+    Application.ScreenUpdating = False 'It is smart to turn off screen updating to boost run time efficiency.
+    
+    ' On rare occasions I wish to organize Shopify Orders that California have already deemed packed, scanned, and ready to be shipped, using this program. When orders are in the aforementioned condition, we need to utilize this program to clean up the data
+    ' upon exporting the orders from our Shopify platform. It is smart to have this program primed to run just in case it is needed.
+    
+    ws_Exported_Orders.Columns("BA:BA").EntireColumn.AutoFit ' Adjusts the size of column BA (the column we are working with here, duh) so we can clearly see the contents stored in this column.
+    ws_Exported_Orders.Columns("BA:BA").Replace What:= _
+        ", Packed at *, Packed at CA Warehouse, Packed by EasyScan", Replacement:="" _
+        , LookAt:=xlPart, SearchOrder:=xlByRows, MatchCase:=False, SearchFormat _
+        :=False, ReplaceFormat:=False, FormulaVersion:=xlReplaceFormula2
+        
+    ' We now want to convert the dates stored in column D into YYYY/MM/DD format, remove # in column A, removes ' in columns populated with data for customer zip codes, and remove unwanted entities in the column that is populated with the Order IDs.
+    
+    ws_Exported_Orders.Columns("D:D").NumberFormat = "yyyymmdd" ' Converts the dates in column D to YYYY/MM/DD format.
+    
+    ' Original format that the dates stored in the Shopify data base follow: 10/25/2024  9:49:34 AM.
+    ' YYYY/MM/DD version: 20241025
+    
+    With ws_Exported_Orders.Cells
+        ' Removes all instances of # from the worksheet.
+        .Replace What:="#", Replacement:="", LookAt:=xlPart, _
+            SearchOrder:=xlByRows, MatchCase:=False, SearchFormat:=False, _
+            ReplaceFormat:=False, FormulaVersion:=xlReplaceFormula2
+        ' Removes all instances of ' from the worksheet.
+        .Replace What:="'", Replacement:="", LookAt:=xlPart, _
+            SearchOrder:=xlByRows, MatchCase:=False, SearchFormat:=False, _
+            ReplaceFormat:=False, FormulaVersion:=xlReplaceFormula2
+        .Replace What:=", CedCommerce Amazon Channel", Replacement:="", _
+            LookAt:=xlPart, SearchOrder:=xlByRows, MatchCase:=False, SearchFormat:= _
+            False, ReplaceFormat:=False, FormulaVersion:=xlReplaceFormula2
+        .Replace What:=", CedCommerce Etsy Integration", Replacement:="", _
+            LookAt:=xlPart, SearchOrder:=xlByRows, MatchCase:=False, SearchFormat:= _
+            False, ReplaceFormat:=False, FormulaVersion:=xlReplaceFormula2
+        .Replace What:=", CedCommerce Ebay Integration", Replacement:="", _
+            LookAt:=xlPart, SearchOrder:=xlByRows, MatchCase:=False, SearchFormat:= _
+            False, ReplaceFormat:=False, FormulaVersion:=xlReplaceFormula2
+        .Replace What:=", Walmart, walmart.com", Replacement:="", LookAt _
+            :=xlPart, SearchOrder:=xlByRows, MatchCase:=False, SearchFormat:=False, _
+            ReplaceFormat:=False, FormulaVersion:=xlReplaceFormula2
+        .Replace What:= _
+            ", Packed at *, Packed at CA Warehouse, Packed by EasyScan", Replacement:="" _
+            , LookAt:=xlPart, SearchOrder:=xlByRows, MatchCase:=False, SearchFormat _
+            :=False, ReplaceFormat:=False, FormulaVersion:=xlReplaceFormula2
+    End With
+    
+    Application.ScreenUpdating = True ' Turns screen updating back on for we are finished with this subroutine.
+    
+    'Displays a message box for the user to read that this portion of data cleaning has been conducted.
+    
+    MsgBox "Data clean up is completed!", vbInformation
+    
+' Subroutine 2: Scans the worksheet for potential duplicated orders/duplicated customer names.
+
+    
+    Application.ScreenUpdating = False
+    
+    ' Here we see a destination worksheet at play. We will be transferring data from the source worksheet to destination worksheet, "Duplicates_Marker" to execute this task.
+    Dim ws_Duplicates_Marker As Worksheet
+    Set ws_Duplicates_Marker = ThisWorkbook.Sheets("Duplicates_Marker")
+    
+
+    ' Copy customer names from column Y of the source worksheet to column A of Duplicates_Marker
+    ws_Exported_Orders.Range("Y:Y").Copy Destination:=ws_Duplicates_Marker.Range("A1")
+    
+    ' Activate the destination worksheet to put it at the forefront of the user interface.
+    ws_Duplicates_Marker.Activate
+
+    ' This turns off the "marching ants" or the animated dashed outline surrounding data that's been selected for a copy or cut operation.
+    Application.CutCopyMode = False
+
+    ' Marks the interior of the cells holding duplicated customer names in red so the user would know which customers to examine for potential duplicate orders.
+    With ws_Duplicates_Marker.Columns("A:A")
+        .FormatConditions.AddUniqueValues
+        .FormatConditions(.FormatConditions.Count).SetFirstPriority
+        .FormatConditions(1).DupeUnique = xlDuplicate
+        With .FormatConditions(1).Font
+            .Color = -16383844
+            .TintAndShade = 0
+        End With
+        With .FormatConditions(1).Interior
+            .PatternColorIndex = xlAutomatic
+            .Color = 13551615
+            .TintAndShade = 0
+        End With
+        .FormatConditions(1).StopIfTrue = False
+    End With
+
+    Application.ScreenUpdating = True
+    
+    MsgBox "Duplicates Scan completed!", vbInformation
+    
+    ws_Exported_Orders.Activate
+
+' Subroutine 3: Ensures we do not forget to export any orders into Excel.
+
+    ' When we export the orders from our Shopify data base, we do not want to leave any orders behind. To accomplish this, we wish to examine if each successive Shopify order number in column A of the source worksheet is one greater than the last,
+    
+    ' Our destination worksheet for this Subroutine is called ws_Order_Sorter.
+    Dim ws_Order_Sorter As Worksheet
+    Set ws_Order_Sorter = ThisWorkbook.Sheets("Order_Sorter")
+    ' We would explore why I declared the following variables later.
+    Dim Exported_Orders_lastRow As Long
+    Dim cell As Range
+    Dim dict As Object ' We would need to create a scripting dictionary to store and work with data in the background.
+    Dim i As Long ' We would need an indicator for a For loop.
+    Dim uniqueRow As Long
+    
+
+    ws_Order_Sorter.Activate
+    
+    Application.ScreenUpdating = False
+    
+    ' Deletes existing data in the destination sheet.
+    ws_Order_Sorter.Cells.Clear
+    
+    ' Locates the last row populated with data in the source sheet.
+    Exported_Orders_lastRow = ws_Exported_Orders.Cells(ws_Exported_Orders.Rows.Count, "A").End(xlUp).Row
+    
+    ' Creates a dictionary to store unique values.
+    Set dict = CreateObject("Scripting.Dictionary")
+    
+    ' Copies and pastes unique values from ws_Exported_Orders to ws_Order_Sorter.
+    uniqueRow = 1 ' Places unique values in column A of ws_Order_Sorter
+    
+    For Each cell In ws_Exported_Orders.Range("A2:A" & Exported_Orders_lastRow)
+        If IsNumeric(cell.Value) And Not dict.exists(cell.Value) Then
+            dict.Add cell.Value, Nothing ' Adds to dictionary
+            ws_Order_Sorter.Cells(uniqueRow, 1).Value = cell.Value ' Copies and pastes to ws_Order_Sorter
+            uniqueRow = uniqueRow + 1 ' Moves to the next row for unique values
+        End If
+    Next cell
+    
+    ' Calculates differences of each consecutive Shopify Order number in column B
+    For i = 2 To uniqueRow - 1 ' Starts populating the destination work sheet starting with the second unique value
+        ws_Order_Sorter.Cells(i - 1, 2).Value = ws_Order_Sorter.Cells(i, 1).Value - ws_Order_Sorter.Cells(i - 1, 1).Value
+    Next i
+    
+    Application.ScreenUpdating = True
+    
+    MsgBox "The differences between each consecutive Shopify Order number have been computed!", vbInformation
+    
+' Subroutine 4: Does the final data refinement before the raw data is transferred to the "final destination worksheet."
+    
+    ' After the conclusion of the previous subroutines, we want to prepare the data located in the sheet "Exported Shopify Orders" for transferral to the sheet "Data Template."
+    ' This program primarily deletes columns with unnecessary data, and converts the Customer PO number into text format.
+
+    
+    Application.ScreenUpdating = False
+    
+    ws_Exported_Orders.Activate
+
+    ws_Exported_Orders.Columns("Y:AF").Select
+    ws_Exported_Orders.Columns("Y:AF").EntireColumn.AutoFit
+    ws_Exported_Orders.Columns("Z:Z").Select
+    Selection.Delete Shift:=xlToLeft
+    ' We do not need data originally found in column AB, deletes it.
+    ws_Exported_Orders.Columns("AB:AB").Select
+    Selection.Delete Shift:=xlToLeft
+    ws_Exported_Orders.Columns("AC:AC").Select
+    Selection.Cut
+    ws_Exported_Orders.Columns("AB:AB").Select
+    Selection.Insert Shift:=xlToRight
+    ws_Exported_Orders.Columns("AG:AN").Select
+    ws_Exported_Orders.Columns("AG:AN").EntireColumn.AutoFit
+    ' We do not need data that is originally found in column AH.
+    ws_Exported_Orders.Columns("AH:AH").Select
+    Selection.Delete Shift:=xlToLeft
+    ' We do not need data that is originally found in column AJ.
+    ws_Exported_Orders.Columns("AJ:AJ").Select
+    Selection.Delete Shift:=xlToLeft
+    ws_Exported_Orders.Columns("AK:AK").Select
+    Selection.Cut
+    ws_Exported_Orders.Columns("AJ:AJ").Select
+    Selection.Insert Shift:=xlToRight
+    ws_Exported_Orders.Columns("AW:AW").Select
+    ws_Exported_Orders.Columns("AW:AW").EntireColumn.AutoFit
+    
+    Application.ScreenUpdating = True
+    
+    MsgBox "Data clean up is completed!", vbInformation
+    
+    ws_Exported_Orders.Columns("AW:AW").Select
+    Selection.Replace What:="*, ", Replacement:="", LookAt:=xlPart, _
+        SearchOrder:=xlByRows, MatchCase:=False, SearchFormat:=False, _
+        ReplaceFormat:=False, FormulaVersion:=xlReplaceFormula2
+    
+    MsgBox "Data for Walmart orders are now cleaned up!", vbInformation
+    
+    ' Converts the Customer IDs/Numbers into text format.
+    
+    ws_Exported_Orders.Columns("AW:AW").Select ' Customer PO
+    Selection.NumberFormat = "@" ' Corresponds to text format.
+    MsgBox "Order POs have been converted to text!", vbInformation
+    MsgBox "The first block of operations for organizing this batch of Shopify Orders have been completed!", vbInformation
+    
+End Sub
