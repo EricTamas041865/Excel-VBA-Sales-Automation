@@ -1,0 +1,306 @@
+Attribute VB_Name = "Module2"
+Sub Block2()
+    
+    ' Declares the variables
+    
+    Dim wb_Automation_Log As Workbook
+    Dim ws_Exported_Orders As Worksheet
+    Dim ws_DATA_TEMPLATE As Worksheet
+    Dim ws_PO_Update As Worksheet
+    Dim ws_Zip_Update As Worksheet
+    Dim ws_Exported_Orders_lastRow As Long
+    Dim ws_DATA_TEMPLATE_lastRow As Long
+    Dim Zip_UpdateLastRow_B As Long
+    Dim Zip_UpdateLastRow_D As Long
+    Dim PO_UpdateLastRow As Long
+    Dim DATA_TEMPLATE_RowE As Long
+    Dim DATA_TEMPLATE_RowG As Long
+    Dim DATA_TEMPLATE_RowN As Long
+    Dim DATA_TEMPLATE_RowV As Long
+    Dim currentNumber As Long
+    Dim previousValue As Variant
+    Dim cell As Range
+    Dim ws_DATA_TEMPLATE_firstBlankRow As Long
+    Dim firstBlankRow_Zip_Update_A As Long
+    Dim firstBlankRow_Zip_Update_C As Long
+    Dim firstBlankRow_PO_Update_A As Long
+    Dim firstBlankRow_PO_Update_C As Long
+    Dim ws_DATA_TEMPLATE_lastRow2 As Long
+    
+' Subroutine 1: Successfully transfers the now refined raw data into our destination worksheet.
+
+' Note: Some data requires further refinement and will not directly be planted into the destination worksheet from the source worksheet. Instead, such data will be transferred to a "transformation worksheet" where formulas are embedded in.
+' Once the data is transferred over to the transformation worksheet, the formulas will execute and yielding the refined data. The refined data will THEN be transferred to the destination worksheet.
+' Zipcodes that only contain 4 characters (numbers) ought to be prepended with a leading 0. Zipcode data will be transferred to the transformation worksheet "Zip_Code_Update" to ensure that all zipcodes within the data set
+' conform with the five digit zipcode format. PO_Update is the transformation worksheet that will take the Shopify order numbers and Customer PO numbers from the source worksheet and compute the correct "customer sales channel codes" and
+' Customer PO numbers that will be then transferred to the destination worksheet. Alright let's get transferring!
+
+    ' Turns offs screen updating and calculation for efficient run time.
+    Application.ScreenUpdating = False
+    Application.Calculation = xlCalculationManual
+    Application.EnableEvents = False
+    
+    ' Sets references to the worksheets.
+    Set wb_Automation_Log = ThisWorkbook
+    Set ws_Exported_Orders = ThisWorkbook.Sheets("Exported Shopify Orders")
+    Set ws_DATA_TEMPLATE = ThisWorkbook.Sheets("Data Template") ' Final destination worksheet.
+    Set ws_PO_Update = ThisWorkbook.Sheets("PO_Update") ' Transformation worksheet
+    Set ws_Zip_Update = ThisWorkbook.Sheets("Zip_Code_Update") ' Transformation worksheet
+    
+    ' Locates the last row with data in the source sheet.
+    ws_Exported_Orders_lastRow = ws_Exported_Orders.Cells(ws_Exported_Orders.Rows.Count, "A").End(xlUp).Row
+   
+    
+    ' Locates the first completely blank rows in all of the sheets we are working with.
+    ws_DATA_TEMPLATE_firstBlankRow = ws_DATA_TEMPLATE.Cells(ws_DATA_TEMPLATE.Rows.Count, "Z").End(xlUp).Row + 1
+   
+    If ws_DATA_TEMPLATE_firstBlankRow < 6 Then ws_DATA_TEMPLATE_firstBlankRow = 6
+    firstBlankRow_Zip_Update_A = ws_Zip_Update.Cells(ws_Zip_Update.Rows.Count, "A").End(xlUp).Row + 1
+    firstBlankRow_Zip_Update_C = ws_Zip_Update.Cells(ws_Zip_Update.Rows.Count, "C").End(xlUp).Row + 1
+    firstBlankRow_PO_Update_A = ws_PO_Update.Cells(ws_PO_Update.Rows.Count, "A").End(xlUp).Row + 1
+    firstBlankRow_PO_Update_C = ws_PO_Update.Cells(ws_PO_Update.Rows.Count, "C").End(xlUp).Row + 1
+    
+    ' Copies specified columns from the source sheet to the destination sheet.
+    ws_Exported_Orders.Range("A2:A" & ws_Exported_Orders_lastRow).Copy ws_DATA_TEMPLATE.Cells(ws_DATA_TEMPLATE_firstBlankRow, "Z")
+    ws_Exported_Orders.Range("Y2:Y" & ws_Exported_Orders_lastRow).Copy ws_DATA_TEMPLATE.Cells(ws_DATA_TEMPLATE_firstBlankRow, "K")
+    ws_Exported_Orders.Range("Z2:Z" & ws_Exported_Orders_lastRow).Copy ws_DATA_TEMPLATE.Cells(ws_DATA_TEMPLATE_firstBlankRow, "L")
+    ws_Exported_Orders.Range("AA2:AA" & ws_Exported_Orders_lastRow).Copy ws_DATA_TEMPLATE.Cells(ws_DATA_TEMPLATE_firstBlankRow, "M")
+    ws_Exported_Orders.Range("AB2:AB" & ws_Exported_Orders_lastRow).Copy ws_Zip_Update.Cells(firstBlankRow_Zip_Update_A, "A")
+    ws_Exported_Orders.Range("D2:D" & ws_Exported_Orders_lastRow).Copy ws_DATA_TEMPLATE.Cells(ws_DATA_TEMPLATE_firstBlankRow, "F")
+    ws_Exported_Orders.Range("AG2:AG" & ws_Exported_Orders_lastRow).Copy ws_DATA_TEMPLATE.Cells(ws_DATA_TEMPLATE_firstBlankRow, "S")
+    ws_Exported_Orders.Range("AH2:AH" & ws_Exported_Orders_lastRow).Copy ws_DATA_TEMPLATE.Cells(ws_DATA_TEMPLATE_firstBlankRow, "T")
+    ws_Exported_Orders.Range("AI2:AI" & ws_Exported_Orders_lastRow).Copy ws_DATA_TEMPLATE.Cells(ws_DATA_TEMPLATE_firstBlankRow, "U")
+    ws_Exported_Orders.Range("AJ2:AJ" & ws_Exported_Orders_lastRow).Copy ws_Zip_Update.Cells(firstBlankRow_Zip_Update_C, "C")
+
+    ' Allows time for formulas in Zip_Code_Update to process.
+    Application.Calculate
+    DoEvents
+    
+    ' Transfers non-blank values from Zip_Code_Update to Data Template.
+    Zip_UpdateLastRow_B = ws_Zip_Update.Cells(ws_Zip_Update.Rows.Count, "B").End(xlUp).Row
+    DATA_TEMPLATE_RowN = 6
+
+    For i = 1 To Zip_UpdateLastRow_B
+        If ws_Zip_Update.Cells(i, "B").Value <> "" Then
+            ws_DATA_TEMPLATE.Cells(DATA_TEMPLATE_RowN, "N").Value = ws_Zip_Update.Cells(i, "B").Value
+            DATA_TEMPLATE_RowN = DATA_TEMPLATE_RowN + 1
+        End If
+    Next i
+    
+    Zip_UpdateLastRow_D = ws_Zip_Update.Cells(ws_Zip_Update.Rows.Count, "D").End(xlUp).Row
+    DATA_TEMPLATE_RowV = 6
+    
+    For i = 1 To Zip_UpdateLastRow_D
+        If ws_Zip_Update.Cells(i, "D").Value <> "" Then
+            ws_DATA_TEMPLATE.Cells(DATA_TEMPLATE_RowV, "V").Value = ws_Zip_Update.Cells(i, "D").Value
+            DATA_TEMPLATE_RowV = DATA_TEMPLATE_RowV + 1
+        End If
+    Next i
+
+    ' Transfers other columns from the source sheet.
+    ws_Exported_Orders.Range("AC2:AC" & ws_Exported_Orders_lastRow).Copy ws_DATA_TEMPLATE.Cells(ws_DATA_TEMPLATE_firstBlankRow, "O")
+    ws_Exported_Orders.Range("AD2:AD" & ws_Exported_Orders_lastRow).Copy ws_DATA_TEMPLATE.Cells(ws_DATA_TEMPLATE_firstBlankRow, "P")
+    ws_Exported_Orders.Range("AK2:AK" & ws_Exported_Orders_lastRow).Copy ws_DATA_TEMPLATE.Cells(ws_DATA_TEMPLATE_firstBlankRow, "W")
+    ws_Exported_Orders.Range("AL2:AL" & ws_Exported_Orders_lastRow).Copy ws_DATA_TEMPLATE.Cells(ws_DATA_TEMPLATE_firstBlankRow, "X")
+
+    ' Cleans up the destination sheet.
+    ws_DATA_TEMPLATE_lastRow = ws_DATA_TEMPLATE.Cells(ws_DATA_TEMPLATE.Rows.Count, "Z").End(xlUp).Row
+
+    For i = ws_DATA_TEMPLATE_lastRow To 6 Step -1
+        If IsEmpty(ws_DATA_TEMPLATE.Cells(i, "Z").Value) Then
+            ws_DATA_TEMPLATE.Rows(i).Delete
+        End If
+    Next i
+
+    ' Finds the new last row after cleanup.
+    ws_DATA_TEMPLATE_lastRow = ws_DATA_TEMPLATE.Cells(ws_DATA_TEMPLATE.Rows.Count, "Z").End(xlUp).Row
+
+    ' Autofills columns with specified values.
+    ws_DATA_TEMPLATE.Range("B6:B" & ws_DATA_TEMPLATE_lastRow).Value = "ALLNJ"
+    ws_DATA_TEMPLATE.Range("C6:C" & ws_DATA_TEMPLATE_lastRow).Value = "SON"
+    ws_DATA_TEMPLATE.Range("H6:H" & ws_DATA_TEMPLATE_lastRow).Value = "ALLCA"
+    ws_DATA_TEMPLATE.Range("I6:I" & ws_DATA_TEMPLATE_lastRow).Value = "USD"
+    ws_DATA_TEMPLATE.Range("J6:J" & ws_DATA_TEMPLATE_lastRow).Value = "MRKP"
+    ws_DATA_TEMPLATE.Range("Q6:Q" & ws_DATA_TEMPLATE_lastRow).Value = "US"
+    ws_DATA_TEMPLATE.Range("R6:R" & ws_DATA_TEMPLATE_lastRow).Value = "MRKP"
+    ws_DATA_TEMPLATE.Range("Y6:Y" & ws_DATA_TEMPLATE_lastRow).Value = "US"
+    ws_DATA_TEMPLATE.Range("AH6:AH" & ws_DATA_TEMPLATE_lastRow).Value = "EA"
+
+
+    ' Copies data from columns U, Q, and S in source sheet to columns AF, AI, and AJ in destination sheet.
+    ws_Exported_Orders.Range("U2:U" & ws_Exported_Orders_lastRow).Copy ws_DATA_TEMPLATE.Cells(ws_DATA_TEMPLATE_firstBlankRow, "AF")
+    ws_Exported_Orders.Range("Q2:Q" & ws_Exported_Orders_lastRow).Copy ws_DATA_TEMPLATE.Cells(ws_DATA_TEMPLATE_firstBlankRow, "AI")
+    ws_Exported_Orders.Range("S2:S" & ws_Exported_Orders_lastRow).Copy ws_DATA_TEMPLATE.Cells(ws_DATA_TEMPLATE_firstBlankRow, "AJ")
+
+    ' Copies columns AW and A from Exported Shopify Orders to PO_Update.
+    ws_Exported_Orders.Range("AW2:AW" & ws_Exported_Orders_lastRow).Copy ws_PO_Update.Cells(firstBlankRow_PO_Update_A, "A")
+    ws_Exported_Orders.Range("A2:A" & ws_Exported_Orders_lastRow).Copy ws_PO_Update.Cells(firstBlankRow_PO_Update_C, "C")
+
+    ' Allows time for formulas in PO_Update to compute.
+    Application.Calculate
+    DoEvents
+
+    ' Copies column B from PO_Update to column E of Data Template (ignore blanks).
+    DATA_TEMPLATE_RowE = 6
+    PO_UpdateLastRow = ws_PO_Update.Cells(ws_PO_Update.Rows.Count, "B").End(xlUp).Row
+
+    For i = 1 To PO_UpdateLastRow
+        If ws_PO_Update.Cells(i, "B").Value <> "" Then
+            ws_DATA_TEMPLATE.Cells(DATA_TEMPLATE_RowE, "E").Value = ws_PO_Update.Cells(i, "B").Value
+            DATA_TEMPLATE_RowE = DATA_TEMPLATE_RowE + 1
+        End If
+    Next i
+
+    ' Copies column D from PO_Update to column G of Data Template (ignore blanks).
+    DATA_TEMPLATE_RowG = 6
+
+    For i = 1 To PO_UpdateLastRow
+        If ws_PO_Update.Cells(i, "D").Value <> "" Then
+            ws_DATA_TEMPLATE.Cells(DATA_TEMPLATE_RowG, "G").Value = ws_PO_Update.Cells(i, "D").Value
+            DATA_TEMPLATE_RowG = DATA_TEMPLATE_RowG + 1
+        End If
+    Next i
+
+    ' Ensures column E is fully populated.
+    ws_DATA_TEMPLATE_lastRow = ws_DATA_TEMPLATE.Cells(ws_DATA_TEMPLATE.Rows.Count, "E").End(xlUp).Row
+    If DATA_TEMPLATE_RowE <= ws_DATA_TEMPLATE_lastRow Then
+        ws_DATA_TEMPLATE_lastRow = ws_DATA_TEMPLATE.Cells(ws_DATA_TEMPLATE.Rows.Count, "G").End(xlUp).Row
+    End If
+
+    ' Clears non-formula cells in Data Template.
+    For Each cell In ws_DATA_TEMPLATE.UsedRange
+        If Not cell.HasFormula Then
+            If IsError(cell.Value) Or IsEmpty(cell.Value) Then
+                cell.ClearContents
+            End If
+        End If
+    Next cell
+
+    ' Clears non-formula cells in PO_Update.
+    For Each cell In ws_PO_Update.UsedRange
+        If Not cell.HasFormula Then
+            If IsError(cell.Value) Or IsEmpty(cell.Value) Then
+                cell.ClearContents
+            End If
+        End If
+    Next cell
+
+    ' Clears non-formula cells in Zip_Code.
+    For Each cell In ws_Zip_Update.UsedRange
+        If Not cell.HasFormula Then
+            If IsError(cell.Value) Or IsEmpty(cell.Value) Then
+                cell.ClearContents
+            End If
+        End If
+    Next cell
+
+    ' Fills column D based on column G values
+    currentNumber = 1
+    previousValue = ws_DATA_TEMPLATE.Cells(6, "G").Value ' Initialize with the value of the first row.
+
+    For i = 6 To ws_DATA_TEMPLATE_lastRow
+        If ws_DATA_TEMPLATE.Cells(i, "G").Value = previousValue Then
+            ws_DATA_TEMPLATE.Cells(i, "D").Value = currentNumber
+        Else
+            currentNumber = currentNumber + 1
+            ws_DATA_TEMPLATE.Cells(i, "D").Value = currentNumber
+            previousValue = ws_DATA_TEMPLATE.Cells(i, "G").Value
+        End If
+    Next i
+    
+    ' Converts the dates into YYYYMMDD format and convert the text format of said dates from "Custom" to "General."
+    ws_DATA_TEMPLATE_lastRow2 = ws_DATA_TEMPLATE.Cells(ws_DATA_TEMPLATE.Rows.Count, "F").End(xlUp).Row
+    For i = 6 To ws_DATA_TEMPLATE_lastRow2
+        If IsDate(ws_DATA_TEMPLATE.Cells(i, "F").Value) Then
+            ws_DATA_TEMPLATE.Cells(i, "F").Value = Format(ws_DATA_TEMPLATE.Cells(i, "F").Value, "yyyymmdd")
+            ws_DATA_TEMPLATE.Cells(i, "F").NumberFormat = "General"
+        End If
+    Next i
+    MsgBox "Dates have been converted into yyyymmdd format and text format has been converted to 'General!'", vbInformation
+        
+    ws_DATA_TEMPLATE.Activate
+
+    ' Restores the initial settings.
+    Application.ScreenUpdating = True
+    Application.Calculation = xlCalculationAutomatic
+    Application.EnableEvents = True
+
+    ' Informs the user that the process is complete.
+    MsgBox "Data transfer, cleanup, and autofill have been completed!", vbInformation
+    
+    ws_DATA_TEMPLATE.Columns("B:AO").Select
+    
+    With Selection
+        .HorizontalAlignment = xlGeneral
+        .VerticalAlignment = xlBottom
+        .WrapText = False
+        .Orientation = 0
+        .AddIndent = False
+        .IndentLevel = 0
+        .ShrinkToFit = False
+        .ReadingOrder = xlContext
+        .MergeCells = False
+    End With
+    
+    With Selection
+        .HorizontalAlignment = xlCenter
+        .VerticalAlignment = xlBottom
+        .WrapText = False
+        .Orientation = 0
+        .AddIndent = False
+        .IndentLevel = 0
+        .ShrinkToFit = False
+        .ReadingOrder = xlContext
+        .MergeCells = False
+    End With
+    Range("A5").Select
+    ws_DATA_TEMPLATE.Columns("A:AO").Select
+    ws_DATA_TEMPLATE.Columns("A:AO").EntireColumn.AutoFit
+    wb_Automation_Log.Save
+    MsgBox "The text has been centered, the column lengths have been adjusted, and the workbook has been saved to reflect these changes!", vbInformation
+    
+    
+   
+    
+    Application.ScreenUpdating = True
+    
+' Sub Routine 2: Clears the contents in the following worksheets: ws_Exported_Orders, ws_Order_Sorter, and ws_Duplicates_Marker, making way for data to be populated in said worksheets for the next batch of Shopify sales orders that arrives into
+' Shopify seller's database later in the morning.
+
+    Dim ws_Duplicates_Marker As Worksheet
+    Set ws_Duplicates_Marker = ThisWorkbook.Sheets("Duplicates_Marker")
+    Dim ws_Order_Sorter As Worksheet
+    Set ws_Order_Sorter = ThisWorkbook.Sheets("Order_Sorter")
+   
+    ws_Duplicates_Marker.Activate
+    Cells.Select
+    Range("A:A").Activate
+    Selection.Delete Shift:=xlUp
+    
+    MsgBox "The data for this batch of orders have been cleared in Duplicates_Marker!", vbInformation
+    
+    ws_Order_Sorter.Activate
+    Cells.Select
+    Range("A:B").Activate
+    Selection.Delete Shift:=xlUp
+    
+    MsgBox "The data for this batch of orders have been cleared in Order_Sorter!", vbInformation
+    
+    ws_Exported_Orders.Activate
+    Cells.Select
+    Selection.Delete Shift:=xlUp
+    Range("A1").Select
+    Range("A1").Activate
+    
+    MsgBox "Last but not least, the data for this batch of orders have been cleared in Exported_Orders! On to the next batch!", vbInformation
+    
+    Application.ScreenUpdating = True
+    
+    ' Saves the workbook.
+    wb_Automation_Log.Save
+    
+    MsgBox "Workbook has been saved!", vbInformation
+    
+    MsgBox "Look at you, you are now done with the second block of operations for organizing this batch of Shopify Orders!", vbInformation
+    
+End Sub
